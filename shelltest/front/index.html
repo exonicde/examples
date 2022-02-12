@@ -1,0 +1,152 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Exonic shell test</title>
+    <style type="text/css">
+    * {
+        box-sizing: border-box;
+    }
+
+    .container {
+        align-items: stretch;
+        flex-direction: column;
+        display: flex;
+        color: #fafafa;
+        background-color: #222;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        padding: 6px 12px 40px 12px;
+    }
+
+    .output {
+        font-size: 9pt;
+        font-family: "Lucida Console", Monaco, monospace;
+        overflow-y: auto;
+        max-width: 100%;
+        word-wrap: break-word;
+    }
+
+    .bottom-panel {
+        background-color: rgba(0, 0, 0, 0.1);
+        display: flex;
+        position: fixed;
+        padding: 6px 12px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 40px;
+        align-items: stretch;
+        justify-content: space-between;
+    }
+
+    .push-button {
+        border: 1px solid #222;
+        background-color: #fafafa;
+        outline: none;
+        padding: 6px 12px;
+        text-align: center;
+    }
+
+    .bottom-panel__push-button {
+        flex-grow: 0;
+        flex-shrink: 0;
+        margin-right: 10px;
+    }
+
+    .bottom-panel__push-button:last-child {
+        margin-right: 0;
+    }
+
+    .command-line {
+        border: 1px solid #222;
+        background-color: #fafafa;
+    }
+
+    .bottom-panel__command-line {
+        flex-grow: 1;
+        flex-shrink: 1;
+        margin-right: 10px;
+    }
+
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <div class="bottom-panel">
+            <button type="submit" class="push-button bottom-panel__push-button" id="run-button">Run</button>
+            <button type="button" class="push-button bottom-panel__push-button" id="clear-button">Clear</button>
+            <input type="text" class="command-line bottom-panel__command-line" id="command-line" autofocus>
+            <button type="button" class="push-button bottom-panel__push-button" id="exit-button">Exit</button>
+        </div>
+
+        <div class="output" id="output"></div>
+    </div>
+    <script>
+    (function () {
+        'use strict';
+
+        function print(text, erase = false) {
+            let output = document.getElementById('output');
+            output.innerText = erase ? text : output.innerText + text;
+        }
+
+        function runCommand() {
+            let commandLine = document.getElementById('command-line');
+            let command = commandLine.value;
+            if (command === 'clear') {
+                print('', true);
+                commandLine.value = '';
+                commandLine.focus();
+                return;
+            }
+            else if (command === 'exit') {
+                exonicAPI.terminateApplication();
+                return;
+            }
+            print(command + '\n');
+            commandLine.value = '';
+            commandLine.focus();
+            window.exonicAPI.shell(command, true, true).then(processObject => {
+                processObject.promise
+                    .then(result => print(result && result.stdOut ? result.stdOut : ''))
+                    .catch(error => print(error && error.stdErr ? error.stdErr : ''));
+            }).catch(error => print('Exonic Shell error' + error + '\n'));
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('run-button').addEventListener('click', runCommand);
+            document.getElementById('command-line').addEventListener('keypress', event => event.keyCode === 13 && runCommand());
+            document.getElementById('exit-button').addEventListener('click', () => window.exonicAPI.terminateApplication());
+            document.getElementById('clear-button').addEventListener('click', () => document.getElementById('output').innerHTML = '');
+
+            function init() {
+                if (window.hasOwnProperty('exonicAPI')) {
+                    exonicAPI.setTitle('Exonic Shell Test Application');
+                    print('Exonic API initialized\n');
+                    exonicAPI.signals.addHandler('term', () => new Promise(resolve => {
+                        document.getElementById('output').innerText = 'TERMINATING\n';
+                        setTimeout(resolve, 2000);
+                    }));
+                    exonicAPI.signals.addHandler('term', () => new Promise(resolve => {
+                        document.getElementById('output').innerText += 'TERMINATING 2\n';
+                        setTimeout(resolve, 2000);
+                    }));
+                    exonicAPI.signals.addHandler('int', () => new Promise(resolve => {
+                        document.getElementById('output').innerText = 'SIGINT\n';
+                        setTimeout(resolve, 2000);
+                    }));
+                }
+                else {
+                    setTimeout(init, 10);
+                }
+            }
+            init();
+        });
+    })();
+    </script>
+</body>
+</html>

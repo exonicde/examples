@@ -1,0 +1,158 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Exonic shell test</title>
+    <style type="text/css">
+    * {
+        box-sizing: border-box;
+    }
+
+    .container {
+        align-items: stretch;
+        flex-direction: column;
+        display: flex;
+        color: #fafafa;
+        background-color: #222;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        padding: 6px 12px 40px 12px;
+    }
+
+    .output {
+        font-size: 9pt;
+        font-family: "Lucida Console", Monaco, monospace;
+        overflow-y: auto;
+        max-width: 100%;
+        word-wrap: break-word;
+    }
+
+    .bottom-panel {
+        background-color: rgba(0, 0, 0, 0.1);
+        display: flex;
+        position: fixed;
+        padding: 6px 12px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 40px;
+        align-items: stretch;
+        justify-content: space-between;
+    }
+
+    .push-button {
+        border: 1px solid #222;
+        background-color: #fafafa;
+        outline: none;
+        padding: 6px 12px;
+        text-align: center;
+    }
+
+    .bottom-panel__push-button {
+        flex-grow: 0;
+        flex-shrink: 0;
+        margin-right: 10px;
+    }
+
+    .bottom-panel__push-button:last-child {
+        margin-right: 0;
+    }
+
+    .command-line {
+        border: 1px solid #222;
+        background-color: #fafafa;
+    }
+
+    .bottom-panel__command-line {
+        flex-grow: 1;
+        flex-shrink: 1;
+        margin-right: 10px;
+    }
+
+    .input {
+        align-items: stretch;
+        flex-direction: column;
+        display: flex;
+        width: 100%;
+        padding: 6px 12px;
+    }
+
+    .input__area {
+        height: 200px;
+    }
+
+    </style>
+</head>
+<body>
+    <div class="container" id="container">
+        <div class="bottom-panel">
+            <button type="button" class="push-button bottom-panel__push-button" id="read-button">Read</button>
+            <button type="button" class="push-button bottom-panel__push-button" id="write-button">Write</button>
+            <button type="button" class="push-button bottom-panel__push-button" id="clear-button">Clear</button>
+            <input type="text" class="command-line bottom-panel__command-line" id="command-line" autofocus>
+            <button type="button" class="push-button bottom-panel__push-button" id="exit-button">Exit</button>
+        </div>
+
+        <div class="output" id="output"></div>
+        <div class="input" id="input">
+            <textarea class="input__area" id="input-area"></textarea>
+        </div>
+    </div>
+    <script>
+    (function () {
+        'use strict';
+
+        function print(text, erase = false) {
+            let output = document.getElementById('output');
+            output.innerText = erase ? text : output.innerText + text;
+        }
+
+        function readFile() {
+            let filename = document.getElementById('command-line').value;
+            print(filename + '\n');
+            exonicAPI.file.open(filename, 'r')
+                .then(file => {
+                    file.readAll().then(text => print(text + '\n'))
+                        .catch(e => print('Text read error ' + e))
+                        .finally(() => file.close());
+                })
+                .catch(e => print('Could not open file by the reason ' + e));
+        }
+
+        function writeFile() {
+            let filename = document.getElementById('command-line').value;
+            print(filename + '\n');
+            exonicAPI.file.open(filename, 'w+')
+                .then(file => {
+                    let data = document.getElementById('input-area').value;
+                    file.write(data).then(count => print('Bytes written: ' + count + '\n'))
+                        .catch(e => print('Text write error ' + e))
+                        .finally(() => file.close());
+                })
+                .catch(e => print('Could not open file by the reason ' + e));
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('read-button').addEventListener('click', readFile);
+            document.getElementById('write-button').addEventListener('click', writeFile);
+            document.getElementById('command-line').addEventListener('keypress', event => event.keyCode === 13 && runCommand());
+            document.getElementById('exit-button').addEventListener('click', () => window.exonicAPI.terminateApplication());
+            document.getElementById('clear-button').addEventListener('click', () => document.getElementById('output').innerHTML = '');
+
+            function init() {
+                if (window.hasOwnProperty('exonicAPI')) {
+                    exonicAPI.setTitle('Exonic File API Test Application');
+                    print('Exonic API initialized\n');
+                }
+                else
+                    setTimeout(init, 10);
+            }
+            init();
+        });
+    })();
+    </script>
+</body>
+</html>
